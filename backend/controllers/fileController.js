@@ -14,7 +14,14 @@ class FileController {
         try {
             const { fileName, fileSize } = req.query;
             const userId = req.user.id;
-            const MAX_QUOTA = 5 * 1024 * 1024 * 1024; // 5GB in bytes
+
+            // 0. Fetch user quota and current plan
+            const userQuery = 'SELECT storage_quota, plan FROM users WHERE id = $1';
+            const userResult = await db.query(userQuery, [userId]);
+            if (userResult.rows.length === 0) {
+                return res.status(404).json({ error: 'User info not found' });
+            }
+            const MAX_QUOTA = parseInt(userResult.rows[0].storage_quota || 5368709120);
 
             if (!fileName) {
                 return res.status(400).json({ error: 'fileName is required' });
@@ -208,7 +215,11 @@ class FileController {
         try {
             const { fileId } = req.body;
             const userId = req.user.id;
-            const MAX_QUOTA = 5 * 1024 * 1024 * 1024;
+
+            // 0. Fetch user quota
+            const userQuery = 'SELECT storage_quota FROM users WHERE id = $1';
+            const userResult = await db.query(userQuery, [userId]);
+            const MAX_QUOTA = parseInt(userResult.rows[0].storage_quota || 5368709120);
 
             if (!fileId) {
                 return res.status(400).json({ error: 'fileId is required' });

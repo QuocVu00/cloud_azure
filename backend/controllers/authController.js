@@ -35,9 +35,9 @@ class AuthController {
 
             // 4. Save to PostgreSQL
             const query = `
-                INSERT INTO users (email, password, full_name, role, created_at)
-                VALUES ($1, $2, $3, 'user', NOW())
-                RETURNING id, email, full_name, role;
+                INSERT INTO users (email, password, full_name, role, created_at, plan, storage_quota)
+                VALUES ($1, $2, $3, 'user', NOW(), 'free', 5368709120)
+                RETURNING id, email, full_name, role, plan, storage_quota;
             `;
             const result = await db.query(query, [email, hashedPassword, fullName]);
 
@@ -92,7 +92,9 @@ class AuthController {
                     id: user.id,
                     email: user.email,
                     fullName: user.full_name,
-                    role: user.role
+                    role: user.role,
+                    plan: user.plan || 'free',
+                    storageQuota: user.storage_quota || 5368709120
                 }
             });
         } catch (error) {

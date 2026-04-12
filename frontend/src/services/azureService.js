@@ -186,3 +186,34 @@ export const adminListFiles = async () => {
     });
     return response.data.files;
 };
+
+/**
+ * Payment: Create VNPay URL
+ */
+export const createPaymentUrl = async (amount, planId) => {
+    try {
+        const response = await axios.post(`${API_BASE_URL}/payment/create-url`, { amount, planId }, {
+            headers: getAuthHeaders()
+        });
+        return response.data.paymentUrl;
+    } catch (error) {
+        console.error('Create Payment URL Error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Payment: Verify VNPay Return
+ */
+export const verifyPayment = async (queryParams) => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/payment/vnpay-return`, {
+            params: queryParams,
+            headers: getAuthHeaders()
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Verify Payment Error:', error);
+        throw error;
+    }
+};

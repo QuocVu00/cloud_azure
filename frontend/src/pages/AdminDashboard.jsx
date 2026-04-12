@@ -263,6 +263,7 @@ const AdminDashboard = () => {
                 <thead>
                   <tr className="border-b border-gray-700/50 bg-gray-900/40">
                     <th className="px-6 py-5 text-sm font-bold text-gray-400 uppercase tracking-widest">Người dùng</th>
+                    <th className="px-6 py-5 text-sm font-bold text-gray-400 uppercase tracking-widest">Gói cước</th>
                     <th className="px-6 py-5 text-sm font-bold text-gray-400 uppercase tracking-widest">Vai trò</th>
                     <th className="px-6 py-5 text-sm font-bold text-gray-400 uppercase tracking-widest">Ngày tham gia</th>
                     <th className="px-6 py-5"></th>
@@ -287,6 +288,15 @@ const AdminDashboard = () => {
                             </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-5 text-sm">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                          u.plan === 'pro' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
+                          u.plan === 'plus' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
+                          'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                        }`}>
+                          {u.plan || 'free'}
+                        </span>
                       </td>
                       <td className="px-6 py-5 text-sm">
                         <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-tighter ${

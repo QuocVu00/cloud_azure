@@ -11,13 +11,14 @@ import {
 import { listFiles, deleteFile, getFileDownloadLink, getFileInfo, saveSharedFileToDrive } from '../services/azureService';
 import UploadZone from '../components/UploadZone';
 
-const Dashboard = ({ pendingShareId, onShareHandled }) => {
+const Dashboard = ({ pendingShareId, onShareHandled, userData, onUpgrade }) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState(null); // Track ID of file with open menu
   const [sharedFile, setSharedFile] = useState(null); // Metadata of file from share link
   const [totalUsage, setTotalUsage] = useState(0);
-  const MAX_QUOTA = 5 * 1024 * 1024 * 1024; // 5GB
+  const MAX_QUOTA = userData?.storageQuota || 5 * 1024 * 1024 * 1024;
+  const currentPlan = userData?.plan || 'free';
 
   const fetchFiles = async () => {
     try {
@@ -200,24 +201,52 @@ const Dashboard = ({ pendingShareId, onShareHandled }) => {
         </div>
 
         {/* Improved Storage Meter */}
-        <div className="flex flex-col w-full md:w-64">
+        <div className="flex flex-col w-full md:w-80">
            <div className="flex justify-between items-end mb-2">
-             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Bộ nhớ đã dùng</span>
-             <span className="text-sm font-black text-blue-400">
+             <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Bộ nhớ đã dùng</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                    currentPlan === 'pro' ? 'bg-purple-500 text-white' : 
+                    currentPlan === 'plus' ? 'bg-amber-500 text-black' : 
+                    'bg-blue-600/20 text-blue-400'
+                }`}>
+                    {currentPlan}
+                </span>
+             </div>
+             <span className={`text-sm font-black ${
+                 currentPlan === 'pro' ? 'text-purple-400' : 
+                 currentPlan === 'plus' ? 'text-amber-400' : 
+                 'text-blue-400'
+             }`}>
                {((totalUsage / MAX_QUOTA) * 100).toFixed(1)}%
              </span>
            </div>
-           <div className="h-2.5 w-full bg-gray-800 rounded-full overflow-hidden border border-gray-700/50 p-[2px]">
+           
+           <div className="h-3 w-full bg-gray-800 rounded-full overflow-hidden border border-gray-700/50 p-[2px]">
              <div 
                className={`h-full rounded-full transition-all duration-1000 ease-out shadow-lg ${
-                 (totalUsage / MAX_QUOTA) > 0.9 ? 'bg-red-500 shadow-red-900/40' : 'bg-gradient-to-r from-blue-600 to-blue-400 shadow-blue-900/40'
+                 (totalUsage / MAX_QUOTA) > 0.9 ? 'bg-red-500 shadow-red-900/40' : 
+                 currentPlan === 'pro' ? 'bg-gradient-to-r from-purple-600 to-indigo-400 shadow-purple-900/40' :
+                 currentPlan === 'plus' ? 'bg-gradient-to-r from-amber-600 to-yellow-400 shadow-amber-900/40' :
+                 'bg-gradient-to-r from-blue-600 to-blue-400 shadow-blue-900/40'
                }`} 
                style={{ width: `${Math.min((totalUsage / MAX_QUOTA) * 100, 100)}%` }}
              ></div>
            </div>
+
            <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-500 uppercase">
              <span>{formatSize(totalUsage)}</span>
-             <span>Tối đa 5GB</span>
+             <div className="flex items-center space-x-2">
+                <span>Hạn mức {formatSize(MAX_QUOTA)}</span>
+                {currentPlan !== 'pro' && (
+                    <button 
+                        onClick={onUpgrade}
+                        className="text-blue-400 hover:text-blue-300 transition-colors underline decoration-dotted underline-offset-2 capitalize"
+                    >
+                        Nâng cấp
+                    </button>
+                )}
+             </div>
            </div>
         </div>
 

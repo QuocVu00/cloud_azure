@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import UpgradePlan from './pages/UpgradePlan';
+import PaymentResult from './pages/PaymentResult';
 import { login } from './services/azureService';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 
-function App() {
+function ProtectedRoute({ children, isAuthenticated }) {
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  return children;
+}
+
+function MainContent() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState('user');
+  const [userData, setUserData] = useState(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,9 +28,10 @@ function App() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
+    const storedUser = localStorage.getItem('user');
+    if (token && storedUser) {
       setIsAuthenticated(true);
-      setUserRole(localStorage.getItem('userRole') || 'user');
+      setUserData(JSON.parse(storedUser));
     }
 
     // Check for shareId in URL
@@ -39,7 +49,16 @@ function App() {
     try {
       const data = await login(email, password);
       setIsAuthenticated(true);
-      setUserRole(data.user.role);
+      const userObj = {
+          id: data.user.id,
+          role: data.user.role,
+          plan: data.user.plan,
+          storageQuota: data.user.storageQuota,
+          email: data.user.email,
+          fullName: data.user.fullName
+      };
+      setUserData(userObj);
+      localStorage.setItem('user', JSON.stringify(userObj));
       localStorage.setItem('userRole', data.user.role);
     } catch (err) {
       setError('Đăng nhập thất bại. Vui lòng kiểm tra lại email/mật khẩu.');
@@ -54,7 +73,7 @@ function App() {
     setError('');
     setSuccess('');
     try {
-      const resp = await axios.post('http://localhost:5000/api/auth/register', {
+      await axios.post('http://localhost:5000/api/auth/register', {
         email,
         password,
         fullName
@@ -71,11 +90,14 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
-    setUserRole('user');
+    setUserData(null);
+    navigate('/');
   };
 
   if (isAuthenticated) {
+    const userRole = userData?.role || 'user';
     return (
       <div className="relative min-h-screen">
         <div className="absolute top-6 right-6 z-50 flex items-center space-x-4">
@@ -92,12 +114,20 @@ function App() {
           </button>
         </div>
         
-        {userRole === 'admin' ? <AdminDashboard /> : (
-          <Dashboard 
-            pendingShareId={pendingShareId} 
-            onShareHandled={() => setPendingShareId(null)} 
-          />
-        )}
+        <Routes>
+          <Route path="/" element={
+            userRole === 'admin' ? <AdminDashboard /> : (
+              <Dashboard 
+                userData={userData}
+                onUpgrade={() => navigate('/upgrade')}
+                pendingShareId={pendingShareId} 
+                onShareHandled={() => setPendingShareId(null)} 
+              />
+            )
+          } />
+          <Route path="/upgrade" element={<UpgradePlan onBack={() => navigate('/')} />} />
+          <Route path="/payment-result" element={<PaymentResult />} />
+        </Routes>
       </div>
     );
   }
@@ -205,6 +235,14 @@ function App() {
         </div>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <MainContent />
+    </BrowserRouter>
   );
 }
 
