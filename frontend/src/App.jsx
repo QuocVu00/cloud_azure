@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import UpgradePlan from './pages/UpgradePlan';
 import PaymentResult from './pages/PaymentResult';
+import ChatWidget from './components/ChatWidget';
 import { login } from './services/azureService';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 
@@ -128,6 +129,7 @@ function MainContent() {
           <Route path="/upgrade" element={<UpgradePlan onBack={() => navigate('/')} />} />
           <Route path="/payment-result" element={<PaymentResult />} />
         </Routes>
+        <ChatWidget />
       </div>
     );
   }
