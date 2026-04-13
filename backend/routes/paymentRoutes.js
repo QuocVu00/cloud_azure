@@ -4,6 +4,7 @@ const paymentController = require('../controllers/paymentController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/create-url', authMiddleware, paymentController.createPaymentUrl);
-router.get('/vnpay-return', paymentController.vnpayReturn); // VNPay will redirect to this, or frontend will call this to verify
+router.get('/vnpay-return', paymentController.vnpayReturn);
+router.get('/vnpay-ipn', paymentController.vnpayIPN);
 
 module.exports = router;

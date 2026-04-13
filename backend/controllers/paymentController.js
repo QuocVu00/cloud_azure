@@ -6,16 +6,54 @@ function sortObject(obj) {
     let sorted = {};
     let str = [];
     let key;
-    for (key in obj){
+    for (key in obj) {
         if (obj.hasOwnProperty(key)) {
             str.push(encodeURIComponent(key));
         }
     }
     str.sort();
     for (key = 0; key < str.length; key++) {
-        sorted[str[key]] = obj[str[key]];
+        sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
     }
     return sorted;
+}
+
+/**
+ * Update user quota and plan based on transaction info
+ */
+async function updateUserQuota(userId, orderInfo) {
+    console.log(`[UPDATE QUOTA] Starting update for User ID: ${userId}, Order Info: ${orderInfo}`);
+    
+    let newQuota = 5 * 1024 * 1024 * 1024; // 5GB default
+    let newPlan = 'free';
+
+    // Handle both raw spaces and encoded '+' in orderInfo
+    const info = orderInfo.toLowerCase();
+    if (info.includes('plus')) {
+        newQuota = 15 * 1024 * 1024 * 1024;
+        newPlan = 'plus';
+    } else if (info.includes('pro')) {
+        newQuota = 50 * 1024 * 1024 * 1024;
+        newPlan = 'pro';
+    }
+
+    try {
+        const result = await db.query(
+            'UPDATE users SET plan = $1, storage_quota = $2 WHERE id = $3 RETURNING *',
+            [newPlan, newQuota, userId]
+        );
+        
+        if (result.rowCount > 0) {
+            console.log(`✅ [UPDATE QUOTA SUCCESS] User ${userId} upgraded to ${newPlan} (${newQuota} bytes)`);
+            return result.rows[0]; // Return the updated user object
+        } else {
+            console.warn(`⚠️ [UPDATE QUOTA WARN] No user found with ID ${userId}`);
+            return null;
+        }
+    } catch (error) {
+        console.error(`❌ [UPDATE QUOTA ERROR] Failed to update user ${userId}:`, error.message);
+        throw error;
+    }
 }
 
 class PaymentController {
@@ -77,13 +115,17 @@ class PaymentController {
                 vnp_Params['vnp_BankCode'] = bankCode;
             }
 
-            vnp_Params = sortObject(vnp_Params);
-            let querystring = require('qs');
-            let signData = querystring.stringify(vnp_Params, { encode: false });
+            let sortedParams = sortObject(vnp_Params);
+            let signData = require('qs').stringify(sortedParams, { encode: false });
             let hmac = crypto.createHmac("sha512", secretKey);
             let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex").toUpperCase(); 
-            vnp_Params['vnp_SecureHash'] = signed;
-            let finalUrl = vnpUrl + '?' + querystring.stringify(vnp_Params, { encode: true });
+            
+            // Add signature to the sorted parameters
+            sortedParams['vnp_SecureHash'] = signed;
+            
+            // Build Final URL using the SAME encoded parameters from sortedParams
+            // We use { encode: false } because sortedParams values are already encoded with +
+            let finalUrl = vnpUrl + '?' + require('qs').stringify(sortedParams, { encode: false });
 
             console.log('--- VNPAY DEBUG ---');
             console.log('TMN_CODE:', tmnCode);
@@ -101,6 +143,7 @@ class PaymentController {
 
     /**
      * GET /api/payment/vnpay-return
+     * User's browser is redirected here
      */
     async vnpayReturn(req, res) {
         try {
@@ -111,38 +154,34 @@ class PaymentController {
             delete vnp_Params['vnp_SecureHashType'];
 
             let secretKey = (process.env.VNP_HASH_SECRET || "").trim();
-            vnp_Params = sortObject(vnp_Params);
-            let querystring = require('qs');
-            let signData = querystring.stringify(vnp_Params, { encode: false });
+            vnp_Params = sortObject(vnp_Params); // Re-encode incoming params (decoded by Express) to match hash format
+            let signData = require('qs').stringify(vnp_Params, { encode: false });
             let hmac = crypto.createHmac("sha512", secretKey);
             let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex").toUpperCase();
 
-            if (secureHash === signed) {
-                // Return success or failure based on vnp_ResponseCode
+            // Log for debugging return signature
+            console.log('--- VNPAY RETURN DEBUG ---');
+            console.log('Incoming Hash:', secureHash);
+            console.log('Calculated Hash:', signed);
+            console.log('Sign Data:', signData);
+            console.log('--------------------------');
+
+            if (secureHash && signed && secureHash.toLowerCase() === signed.toLowerCase()) {
                 const responseCode = vnp_Params['vnp_ResponseCode'];
                 const txnRef = vnp_Params['vnp_TxnRef'];
                 const userId = txnRef.split('_')[0];
                 const orderInfo = vnp_Params['vnp_OrderInfo'];
 
                 if (responseCode === "00") {
-                    // Success! Update user quota
-                    let newQuota = 5 * 1024 * 1024 * 1024;
-                    let newPlan = 'free';
-
-                    if (orderInfo.includes('plus')) {
-                        newQuota = 15 * 1024 * 1024 * 1024;
-                        newPlan = 'plus';
-                    } else if (orderInfo.includes('pro')) {
-                        newQuota = 50 * 1024 * 1024 * 1024;
-                        newPlan = 'pro';
-                    }
-
-                    await db.query(
-                        'UPDATE users SET plan = $1, storage_quota = $2 WHERE id = $3',
-                        [newPlan, newQuota, userId]
-                    );
-
-                    return res.status(200).json({ success: true, message: 'Thành toán thành công', code: responseCode });
+                    // Success! 
+                    // Note: In production, trust IPN more than Return URL
+                    const updatedUser = await updateUserQuota(userId, orderInfo);
+                    return res.status(200).json({ 
+                        success: true, 
+                        message: 'Thanh toán thành công', 
+                        code: responseCode,
+                        user: updatedUser
+                    });
                 } else {
                     return res.status(200).json({ success: false, message: 'Thanh toán thất bại', code: responseCode });
                 }
@@ -152,6 +191,53 @@ class PaymentController {
         } catch (error) {
             console.error('VNPay Return Error:', error);
             res.status(500).json({ error: 'Internal Server Error during payment callback' });
+        }
+    }
+
+    /**
+     * GET /api/payment/vnpay-ipn
+     * VNPay calls this server-to-server
+     */
+    async vnpayIPN(req, res) {
+        try {
+            let vnp_Params = req.query;
+            let secureHash = vnp_Params['vnp_SecureHash'];
+
+            delete vnp_Params['vnp_SecureHash'];
+            delete vnp_Params['vnp_SecureHashType'];
+
+            vnp_Params = sortObject(vnp_Params);
+            let secretKey = (process.env.VNP_HASH_SECRET || "").trim();
+            let signData = require('qs').stringify(vnp_Params, { encode: false });
+            let hmac = crypto.createHmac("sha512", secretKey);
+            let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex").toUpperCase();
+
+            // Log for debugging IPN signature
+            console.log('--- VNPAY IPN DEBUG ---');
+            console.log('Incoming Hash:', secureHash);
+            console.log('Calculated Hash:', signed);
+            console.log('-----------------------');
+
+            if (secureHash && signed && secureHash.toLowerCase() === signed.toLowerCase()) {
+                const responseCode = vnp_Params['vnp_ResponseCode'];
+                const txnRef = vnp_Params['vnp_TxnRef'];
+                const userId = txnRef.split('_')[0];
+                const orderInfo = vnp_Params['vnp_OrderInfo'];
+
+                if (responseCode === "00") {
+                    // Success
+                    await updateUserQuota(userId, orderInfo);
+                    res.status(200).json({ RspCode: '00', Message: 'Confirm Success' });
+                } else {
+                    // Payment failed
+                    res.status(200).json({ RspCode: '00', Message: 'Confirm Success (Payment Fail handled)' });
+                }
+            } else {
+                res.status(200).json({ RspCode: '97', Message: 'Checksum failed' });
+            }
+        } catch (error) {
+            console.error('VNPay IPN Error:', error);
+            res.status(200).json({ RspCode: '99', Message: 'Unkown error' });
         }
     }
 }

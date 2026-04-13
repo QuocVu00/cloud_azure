@@ -17,7 +17,17 @@ const PaymentResult = () => {
                 if (result.success) {
                     setStatus('success');
                     setMessage(result.message);
-                    // Crucial: Update local user info if needed, or just let Dashboard refresh on mount
+                    
+                    // Update user info in localStorage
+                    if (result.user) {
+                        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                        const updatedUser = {
+                            ...currentUser,
+                            plan: result.user.plan,
+                            storageQuota: result.user.storage_quota // Backend uses storage_quota, frontend expects storageQuota
+                        };
+                        localStorage.setItem('user', JSON.stringify(updatedUser));
+                    }
                 } else {
                     setStatus('failure');
                     setMessage(result.message || 'Thanh toán không thành công.');

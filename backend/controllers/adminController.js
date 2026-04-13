@@ -12,7 +12,7 @@ class AdminController {
     async listAllUsers(req, res) {
         try {
             const query = `
-                SELECT id, email, full_name, role, created_at 
+                SELECT id, email, full_name, role, plan, storage_quota, created_at 
                 FROM users 
                 ORDER BY created_at DESC;
             `;
