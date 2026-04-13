@@ -7,7 +7,7 @@ import UpgradePlan from './pages/UpgradePlan';
 import PaymentResult from './pages/PaymentResult';
 import ChatWidget from './components/ChatWidget';
 import { login } from './services/azureService';
-import { Lock, Mail, Loader2 } from 'lucide-react';
+import { Cloud, Lock, Mail, Loader2, HardDrive } from 'lucide-react';
 
 function ProtectedRoute({ children, isAuthenticated }) {
   if (!isAuthenticated) return <Navigate to="/" replace />;
@@ -138,12 +138,12 @@ function MainContent() {
     <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-gray-800/50 border border-gray-700 rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-blue-600/20 rounded-xl mb-4">
-            <Lock className="w-8 h-8 text-blue-500" />
+          <div className="inline-flex p-4 bg-gradient-to-br from-blue-600/30 to-indigo-600/30 rounded-2xl mb-4 border border-blue-500/20">
+            <Cloud className="w-10 h-10 text-blue-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Google Drive Mini</h1>
-          <p className="text-gray-400 mt-2">
-            {isRegisterMode ? 'Tạo tài khoản mới' : 'Đăng nhập để quản lý tệp tin'}
+          <h1 className="text-3xl font-black text-white tracking-tight">GDrive <span className="text-blue-400">Mini</span></h1>
+          <p className="text-gray-400 mt-2 text-sm">
+            {isRegisterMode ? '✨ Tạo tài khoản miễn phí' : '☁️ Đăng nhập để quản lý tệp tin'}
           </p>
         </div>
 
@@ -231,8 +231,9 @@ function MainContent() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-700 text-center">
-          <p className="text-sm text-gray-500">
-            Dự án Google Drive Mini - IT Cybersecurity Student
+          <p className="text-xs text-gray-600 flex items-center justify-center gap-1.5">
+            <HardDrive className="w-3.5 h-3.5" />
+            GDrive Mini &mdash; Lưu trữ đám mây cá nhân
           </p>
         </div>
       </div>

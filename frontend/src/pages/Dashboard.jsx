@@ -195,7 +195,7 @@ const Dashboard = ({ pendingShareId, onShareHandled, userData, onUpgrade }) => {
             <HardDrive className="text-white w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Google Drive Mini</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">GDrive <span className="text-blue-400">Mini</span></h1>
             <p className="text-gray-500 text-sm font-medium">Lưu trữ tệp tin cá nhân an toàn</p>
           </div>
         </div>
